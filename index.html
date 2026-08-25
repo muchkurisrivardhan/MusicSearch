@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Music Search</title>
+<style>
+  :root {
+    --bg: #fff; --fg: #111; --muted: #6b6b70;
+    --line: #e5e5ea; --field: #f2f2f7; --accent: #0a7cff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000; --fg: #f2f2f7; --muted: #8e8e93;
+      --line: #1f1f22; --field: #1c1c1e; --accent: #0a84ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  header {
+    position: sticky; top: 0; background: var(--bg);
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  h1 { font-size: 26px; margin: 0 0 10px; letter-spacing: -.02em; }
+  form { display: flex; gap: 8px; }
+  input {
+    flex: 1; min-width: 0; padding: 11px 14px; font-size: 17px;
+    border: 0; border-radius: 10px; background: var(--field); color: var(--fg);
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  button {
+    padding: 11px 16px; font-size: 16px; font-weight: 500; border: 0;
+    border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:active { opacity: .7; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .title { font-size: 16px; }
+  .creator { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .note { padding: 48px 24px; text-align: center; color: var(--muted); }
+  a { color: inherit; text-decoration: none; display: block; }
+  li:active { background: var(--field); }
+</style>
+
+<header>
+  <h1>Music</h1>
+  <form id="f" action="#">
+    <input id="q" type="search" placeholder="Search songs" autocomplete="off"
+           enterkeyhint="search" autofocus>
+    <button type="submit">Search</button>
+  </form>
+</header>
+<div id="out"><p class="note">Search for music</p></div>
+
+<script>
+const out = document.getElementById('out');
+let seq = 0;   // ponytail: guards against a slow early query overwriting a newer one
+
+// archive.org returns these as a string, an array, or omits them.
+const flat = v => Array.isArray(v) ? v.join(', ') : (v || null);
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function search(query) {
+  const mine = ++seq;
+  out.innerHTML = '<p class="note">Searching…</p>';
+  const url = 'https://archive.org/advancedsearch.php?' + new URLSearchParams([
+    ['q', query + ' AND mediatype:(audio)'],
+    ['fl[]', 'identifier'], ['fl[]', 'title'], ['fl[]', 'creator'],
+    ['rows', '50'], ['output', 'json'],
+  ]);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const docs = (await res.json()).response.docs;
+    if (mine !== seq) return;
+    out.innerHTML = docs.length
+      ? '<ul>' + docs.map(d => `<li><a href="https://archive.org/details/${encodeURIComponent(d.identifier)}" target="_blank" rel="noopener">
+           <div class="title">${esc(flat(d.title) || 'Untitled')}</div>
+           <div class="creator">${esc(flat(d.creator) || 'Unknown artist')}</div>
+         </a></li>`).join('') + '</ul>'
+      : '<p class="note">No results</p>';
+  } catch (e) {
+    if (mine !== seq) return;
+    out.innerHTML = `<p class="note">Search failed<br>${esc(e.message)}</p>`;
+  }
+}
+
+// A real form: Enter works, and so does the mobile keyboard's Search key.
+const box = document.getElementById('q');
+document.getElementById('f').addEventListener('submit', e => {
+  e.preventDefault();
+  const q = box.value.trim();
+  if (q) { box.blur(); search(q); }
+});
+</script>

@@ -3,6 +3,14 @@
 iOS app: search bar over archive.org's audio collection, results list.
 No dependencies, no API key.
 
+## Web version (test now, no install)
+
+`index.html` - single file, no build step, no backend. archive.org sends
+`Access-Control-Allow-Origin: *`, so the page calls it directly.
+
+Live: https://muchkurisrivardhan.github.io/MusicSearch/
+Local: `python -m http.server 8000` then open http://localhost:8000
+
 ## Install on iPhone (no Mac)
 
 1. Push this repo to GitHub.
