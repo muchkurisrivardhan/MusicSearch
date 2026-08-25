@@ -1,0 +1,39 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      # Unsigned on purpose - Sideloadly signs locally with your Apple ID.
+      - name: Build
+        run: |
+          xcodebuild \
+            -project MusicSearch.xcodeproj \
+            -scheme MusicSearch \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/MusicSearch.app Payload/
+          zip -qry MusicSearch.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicSearch-ipa
+          path: MusicSearch.ipa
